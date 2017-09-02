@@ -45,7 +45,7 @@ class Fonts(object):
 class Sound(object):
 
     def __init__(self):
-        # self.space = pygame.mixer.Sound('data/power2.ogg')
+        #self.space = pygame.mixer.Sound('data/power2.ogg')
         self.takeoff = pygame.mixer.Sound('data/takeoff.ogg')
 
     def play(self, obj):

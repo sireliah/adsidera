@@ -1,29 +1,7 @@
-# -*- coding: utf-8 -*-
 
-"""
-    Adsidera v0.4 Space gravity game
-    for more info, please visit http://sourceforge.net/projects/adsidera/
-
-    Copyright (C) 2013 Piotr Gołąb
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
 import math
 import random
 import pygame
-from numpy import mean
-from conf import *
 from conf import s, fonts, Colors
 
 
@@ -79,29 +57,29 @@ class Drawing(Trajectory):
 
     def draw_objects(self, body, camx, camy, sin, cos, imx, imy, count, colonies):
 
-        if body.type != 1 and body.type != 3 and body.type != 6:
+        if body.type not in ('star', 'moon', '???'):
             self.add_points(body, 250, count)
 
         # Make sure that we are drawing objects that are within screen view.
         if (body.x > camx and body.x > camx-s.window_width) and (body.y > camy and body.y > camy-s.window_height):
             # Neither star nor moon.
-            if body.type != 1 and body.type != 3 and body.type != 6:
+            if body.type not in ('star', 'moon', '???'):
                 self.draw_points(body.trail, camx, camy, 250)
 
-            if body.type == 1:
+            if body.type == 'star':
                 star(body, camx, camy)
-            elif body.type == 2:
+            elif body.type == 'planet':
                 planet(body, camx, camy)
-            elif body.name == 'rocket':
+            elif body.type == 'rocket':
                 self.draw_rocket(body, camx, camy, sin, cos, imx, imy)
             else:
                 pygame.draw.circle(s.surface, body.color, (int(body.x-camx), int(body.y-camy)), body.size, 0)
 
             colonies.colony_caption(body, camx, camy)
 
-            if body.name != 'luna' and body.name != 'rocket' and body.type != 6:
+            if body.name != 'luna' and body.name != 'rocket' and body.type != '???':
                 object_caption(int(body.x-camx), int(body.y-camy), body.name)
-            if body.type == 6:
+            if body.type == '???':
                 an = math.atan2(body.velocityx, body.velocityy)
                 if not math.isnan(an):
                     an = an - math.pi
@@ -161,6 +139,7 @@ def draw_trail(trail_list):
 
         del trail_list[0]
 
+
 class HUD(object):
 
     def __init__(self, bodies, sp, sin, cos, clock, rockets, landing_vehicles):
@@ -168,8 +147,6 @@ class HUD(object):
         self.sp = sp
         self.sin = sin
         self.cos = cos
-        self.s = 8 * self.sin
-        self.c = 8 * self.cos
         self.clock = clock
         self.rockets = rockets
         self.landing_vehicles = landing_vehicles
@@ -179,8 +156,6 @@ class HUD(object):
         self.body = body
         self.camx = camx
         self.camy = camy
-        self.sz = s.window_width
-        self.wys = s.window_height
         self.cooldown = cooldown
         self.fuel = fuel
         self.rdist = rdist
@@ -191,31 +166,31 @@ class HUD(object):
             text2 = fonts.basic.render(u"Y axis: "+str(int(self.body.y)), 1, Colors.WHITE)
 
             if self.fuel < 100:
-                pygame.draw.line(s.surface, Colors.RED, (self.sz-300, self.wys-80), (self.sz-295+(int(self.fuel/4)), self.wys-80), 20) 
+                pygame.draw.line(s.surface, Colors.RED, (s.window_width-300, s.window_height-80), (s.window_width-295+(int(self.fuel/4)), s.window_height-80), 20) 
             else:
-                pygame.draw.line(s.surface, Colors.WHITE, (self.sz-300, self.wys-80), (self.sz-295+(int(self.fuel/4)), self.wys-80), 20)
+                pygame.draw.line(s.surface, Colors.WHITE, (s.window_width-300, s.window_height-80), (s.window_width-295+(int(self.fuel/4)), s.window_height-80), 20)
 
-            s.surface.blit(text, (self.sz-300, self.wys-140))
-            s.surface.blit(text2, (self.sz-300, self.wys-120))
+            s.surface.blit(text, (s.window_width-300, s.window_height-140))
+            s.surface.blit(text2, (s.window_width-300, s.window_height-120))
             text_fuel = fonts.basic.render(u"Fuel: "+str(self.fuel), 1, Colors.OCEAN)
-            s.surface.blit(text_fuel, (self.sz-300, self.wys-90))
+            s.surface.blit(text_fuel, (s.window_width-300, s.window_height-90))
             text_landing_vehicles = fonts.basic.render("Landing vehicles: %s" % self.landing_vehicles, 1, Colors.RED)
             s.surface.blit(text_landing_vehicles, (int(s.window_width-300), int(s.window_height-50)))
-            self.Gravimeter(gforce, fuel_dist)
+            self.gravimeter(gforce, fuel_dist)
 
             colonies.show_col(self.camx, self.camy)
 
         self.draw_map()
 
-    def Gravimeter(self, gforce, fuel_dist):
+    def gravimeter(self, gforce, fuel_dist):
         angle = math.atan2(gforce[0], gforce[1])
         if math.isnan(angle):
             angle = 0
         pygame.draw.line(
             s.surface,
             Colors.RED,
-            (self.sz-260-int(math.sin(angle)*20), self.wys-195-int(math.cos(angle)*20)),
-            (self.sz-260-int(math.sin(angle)*32), self.wys-193-int(math.cos(angle)*32)),
+            (s.window_width-260-int(math.sin(angle)*20), s.window_height-195-int(math.cos(angle)*20)),
+            (s.window_width-260-int(math.sin(angle)*32), s.window_height-193-int(math.cos(angle)*32)),
             2
         )
 
@@ -228,33 +203,33 @@ class HUD(object):
 
         if self.rdist < 30:
             pygame.draw.circle(s.surface, Colors.GRAY, (int(self.body.x-self.camx), int(self.body.y-self.camy)), 30, 2)
-            pygame.draw.circle(s.surface, Colors.WHITE, (self.sz-260, self.wys-193), 33, 1)
+            pygame.draw.circle(s.surface, Colors.WHITE, (s.window_width-260, s.window_height-193), 33, 1)
 
         if fuel_dist < 30:
             pygame.draw.circle(s.surface, Colors.GREEN, (int(self.body.x-self.camx), int(self.body.y-self.camy)), 30, 2)
 
         if self.cooldown < 20:
-            pygame.gfxdraw.arc(s.surface, self.sz-260, self.wys-193, 43, 0, int(self.cooldown*13), Colors.OCEAN)
-            pygame.gfxdraw.arc(s.surface, self.sz-260, self.wys-193, 44, 0, int(self.cooldown*13), Colors.OCEAN)
-            pygame.gfxdraw.arc(s.surface, self.sz-260, self.wys-193, 46, 0, int(self.cooldown*13), Colors.OCEAN)
+            pygame.gfxdraw.arc(s.surface, s.window_width-260, s.window_height-193, 43, 0, int(self.cooldown*13), Colors.OCEAN)
+            pygame.gfxdraw.arc(s.surface, s.window_width-260, s.window_height-193, 44, 0, int(self.cooldown*13), Colors.OCEAN)
+            pygame.gfxdraw.arc(s.surface, s.window_width-260, s.window_height-193, 46, 0, int(self.cooldown*13), Colors.OCEAN)
         else:
-            pygame.gfxdraw.arc(s.surface, self.sz-260, self.wys-193, 43, 0, int(self.cooldown*13), Colors.RED)
-            pygame.gfxdraw.arc(s.surface, self.sz-260, self.wys-193, 44, 0, int(self.cooldown*13), Colors.RED)
+            pygame.gfxdraw.arc(s.surface, s.window_width-260, s.window_height-193, 43, 0, int(self.cooldown*13), Colors.RED)
+            pygame.gfxdraw.arc(s.surface, s.window_width-260, s.window_height-193, 44, 0, int(self.cooldown*13), Colors.RED)
 
-        pygame.draw.circle(s.surface, Colors.DARKGRAY, (self.sz-260, self.wys-193), 42, 1)
+        pygame.draw.circle(s.surface, Colors.DARKGRAY, (s.window_width-260, s.window_height-193), 42, 1)
 
     def draw_map(self):
         for x in range(0, self.rockets):
-            s.surface.blit(self.sp.rockets, (self.sz-200+40*x, self.wys-240))
+            s.surface.blit(self.sp.rockets, (s.window_width-200+40*x, s.window_height-240))
 
-        pygame.draw.rect(s.surface, Colors.WHITE, (0, self.wys-200, 200, 200), 1)
+        pygame.draw.rect(s.surface, Colors.WHITE, (0, s.window_height-200, 200, 200), 1)
         map_camera_x = 0
         map_camera_y = 0
 
         for c in self.bodies:
-            if c.type is not 6:
-                if [i for i in self.bodies if i.type == 0]:
-                    if c.type == 0:
+            if c.type != '???':
+                if [i for i in self.bodies if i.type == 'rocket']:
+                    if c.type == 'rocket':
                         map_camera_x = int(c.x/20-100)
                         map_camera_y = int(c.y/20-100)
 
@@ -264,10 +239,10 @@ class HUD(object):
                         map_camera_y = int(c.y/20-100)
                         if self.rockets > 0:
                             enter_txt = fonts.basic.render(u"Hit ENTER to take off. ", 1, Colors.WHITE)
-                            s.surface.blit(enter_txt, (self.sz-700, self.wys-500))
+                            s.surface.blit(enter_txt, (s.window_width-700, s.window_height-500))
 
                 if map_camera_x != 0 and map_camera_y != 0:
                     mapx = int(10+c.x/20-map_camera_x)
-                    mapy = int(self.wys-200+c.y/20-map_camera_y)
-                    if mapx > 0 and mapx < 200 and mapy > self.wys-200 and mapy < self.wys:
+                    mapy = int(s.window_height-200+c.y/20-map_camera_y)
+                    if mapx > 0 and mapx < 200 and mapy > s.window_height-200 and mapy < s.window_height:
                         pygame.draw.circle(s.surface, c.color, (mapx, mapy), int(c.size/4), 0)

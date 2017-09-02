@@ -1,40 +1,18 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
-"""
-    Adsidera v1.0 Space gravity game
-    for more info, please visit http://sourceforge.net/projects/adsidera/
-
-    Copyright (C) 2013 Piotr Gołąb
-
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-"""
-import pygame
 import time
 import math
 import random
-from numpy import mean
-from pygame import joystick
+import pygame
 from pygame import gfxdraw
-from pygame.locals import *
+from pygame.locals import KEYDOWN, K_RETURN, K_ESCAPE, K_SPACE, K_LEFT, K_RIGHT, K_c, K_g, QUIT
+from numpy import mean
 
 from bodies import Body, BodiesCreator
-
-from mainmenu import Menu
-
-from conf import fonts, s, Colors, Sound, GameSettings, endgame
 from colonies import Colonies
+from conf import fonts, s, Colors, Sound, GameSettings, endgame
 from drawing import Drawing, Sprites, HUD, draw_trail
+from mainmenu import Menu
 from planet_names import PLANET_NAMES, STAR_NAMES
 
 
@@ -62,18 +40,18 @@ class Mainloop(object):
         self.lander_dist = 0
         self.landing_vehicle_lock = False
         self.landing_vehicles = 3
-        self.llx, self.lly = [], []
+        self.velocity_components_x, self.velocity_components_y = [], []
         self.cooldown = 0
         self.fuel = 1000
         self.fuel_dist = 0
         self.vectorx, self.vectory = 1, 1
         self.landerx, self.landery = 0, 0
-        self.imx, self.imy = 6, 16
-        self.thrl, self.thrr = 0, 0
+        self.rocket_center_x, self.rocket_center_y = 6, 16
+        self.rocket_thruster_left, self.rocket_thruster_right = 0, 0
         self.sp = Sprites()
         self.image_orig = self.sp.image.copy()
         self.colonies = Colonies(self.rocket_resources)
-        self.d = Drawing(self.camx, self.camy, self.count, self.sp, BodiesCreator.generate_stars())
+        self.drawing = Drawing(self.camx, self.camy, self.count, self.sp, BodiesCreator.generate_stars())
 
     def play(self):
         while True:
@@ -87,18 +65,26 @@ class Mainloop(object):
             self.events()
             self.bodies_interactions()
 
-            oldrect = self.sp.image.get_rect()
-            self.sp.image = pygame.transform.rotozoom(self.image_orig, int(math.degrees(self.rocket_angle)), 1)
-            newrect = self.sp.image.get_rect()
-            self.imx += newrect.centerx - oldrect.centerx
-            self.imy += newrect.centery - oldrect.centery
+            new_center_x, new_center_y = self.transform_rocket_image()
+            self.rocket_center_x += new_center_x
+            self.rocket_center_y += new_center_y
 
-            self.rockets_available()
-            self.gforce = (mean(self.llx), mean(self.lly))
+            self.check_rockets_available()
+
+            """
+            Calculate the force applied to the rocket based on mean velocity components from last iteration.
+            This will be used in the gravimeter.
+            """
+            self.gforce = (mean(self.velocity_components_x), mean(self.velocity_components_y))
+
             self.addd.comets()
-            self.d.draw_stars(self.camx, self.camy)
-            del self.llx[:]
-            del self.lly[:]
+            self.drawing.draw_stars(self.camx, self.camy)
+
+            # Empty old velocity components lists.
+            del self.velocity_components_x[:]
+            del self.velocity_components_y[:]
+
+            # Tick the game clock and draw all images.
             self.clock.tick_busy_loop(GameSettings.FPS)
             pygame.display.flip()
 
@@ -110,7 +96,7 @@ class Mainloop(object):
                 body.y += body.velocityy + self.vectory / GameSettings.RETARDATION
                 self.camera(body, center_on='rocket')
 
-            elif body.type == 5:
+            elif body.type == 'landing_vehicle':
                 lander_angle = math.atan2(self.landerx, self.landery)
                 if self.lander_dist < 200:
                     sx = body.velocityx - (math.sin(lander_angle) / 2)
@@ -120,7 +106,7 @@ class Mainloop(object):
                     sy = body.velocityy / GameSettings.RETARDATION
                 body.x += sx
                 body.y += sy
-            elif body.type == 6:
+            elif body.type == '???':
                 pass
             else:
                 body.x += body.velocityx / GameSettings.RETARDATION
@@ -149,14 +135,14 @@ class Mainloop(object):
             )
             self.rocket_dynamics()
             self.bodies_physics(body1)
-            self.d.draw_objects(
+            self.drawing.draw_objects(
                 body1,
                 self.camx,
                 self.camy,
                 self.sin,
                 self.cos,
-                self.imx,
-                self.imy,
+                self.rocket_center_x,
+                self.rocket_center_y,
                 self.count,
                 self.colonies
             )
@@ -169,7 +155,6 @@ class Mainloop(object):
                         (body1.x - body2.x) ** 2 + (body1.y - body2.y) ** 2
                     )
 
-                    #self.col = Colony(body1, body2, distance, self.rocket_circle)
                     self.collisions(body1, body2, distance)
                     self.fuel_out(body1, body2, distance)
 
@@ -178,7 +163,8 @@ class Mainloop(object):
                     if distance < 150000:
 
                         """
-                        Newton's law of universal gravitation.
+                        Newton's law of universal gravitation.*
+                        *works only for non-superlarge distances because of the performance reasons. ᕙ(⇀‸↼‶)ᕗ
                         """
 
                         # Calculate the gravitational force between two bodies.
@@ -188,25 +174,25 @@ class Mainloop(object):
                         a = F / body1.mass
 
                         # Calculate velocity components.
-                        componentx = (a * (body1.x - body2.x)) / distance 
+                        componentx = (a * (body1.x - body2.x)) / distance
                         componenty = (a * (body1.y - body2.y)) / distance
 
-                        if body1.name == 'rocket' or body2.name == 'rocket':
-                            self.llx.append(componentx)
-                            self.lly.append(componenty)
+                        if body1.name == 'rocket':
+                            self.velocity_components_x.append(componentx)
+                            self.velocity_components_y.append(componenty)
 
-                            if body2.type == 2:
+                            if body2.type == 'planet':
                                 self.fuel_dist = distance
                                 if self.fuel_dist < 30:
-                                    self.load_fuel()
+                                    self.load_fuel(body2)
                                     pygame.draw.circle(
                                         s.surface, Colors.GREEN,
-                                        (int(body1.x-self.camx), int(body1.y-self.camy)),
+                                        (int(body1.x - self.camx), int(body1.y - self.camy)),
                                         30, 2
                                     )
 
                         if 'landing vehicle' in body1.name:
-                            if body2.type == 2:
+                            if body2.type == 'planet':
                                 self.lander_dist = distance
                                 if distance < 200:
                                     self.landerx = componentx
@@ -214,14 +200,18 @@ class Mainloop(object):
                                     if distance < 17:
                                         self.colonies.colony_deployment(body1, body2, distance, self.rocket_resources)
                                         self.del_body(body1.name)
-                            elif body2.type == 0:
+                            elif body2.type == 'rocket':
                                 # Distance from rocket to landing vehicle
                                 self.rdist = distance
-                        if not [i for i in self.bodies if i.name == 'rocket']:
-                            if body1.name == 'terra':
-                                if body2.name == 'sol':
-                                    self.tvx = componentx
-                                    self.tvy = componenty
+
+                        """
+                        If rocket was just destroyed, we store the velocity component between Sun and Earth
+                        to later calculate in which direction should we launch the new rocket.
+                        """
+                        if (not [i for i in self.bodies if i.name == 'rocket'] and
+                                body1.name == 'terra' and body2.name == 'sol'):
+                            self.terra_sol_component_x = componentx
+                            self.terra_sol_component_y = componenty
 
                     # Subtract velocity components.
                     if distance < 1500:
@@ -238,6 +228,10 @@ class Mainloop(object):
                         self.landing_vehicles = 3
 
     def camera(self, body, center_on=''):
+        """
+        Move the camera along with the centered object (rocket).
+        """
+
         if body.name == center_on:
             if (self.camx + s.pol_szer) - body.x > GameSettings.CAMERA_MARGIN:
                 self.camx = body.x + GameSettings.CAMERA_MARGIN - s.pol_szer
@@ -248,10 +242,28 @@ class Mainloop(object):
             elif body.y - (self.camy + s.pol_wys) > GameSettings.CAMERA_MARGIN:
                 self.camy = body.y - GameSettings.CAMERA_MARGIN - s.pol_wys
 
+    def transform_rocket_image(self):
+        """
+        Get the rocket rectangle and rotate it.
+        Return new center, because rectangle is deformed in the process.
+        """
+        oldrect = self.sp.image.get_rect()
+        self.sp.image = pygame.transform.rotozoom(self.image_orig, int(math.degrees(self.rocket_angle)), 1)
+        newrect = self.sp.image.get_rect()
+        new_center_x = newrect.centerx - oldrect.centerx
+        new_center_y = newrect.centery - oldrect.centery
+        return new_center_x, new_center_y
+
     def events(self):
+        """
+        Pygame event loop.
+        """
+
         for event in pygame.event.get():
             for body in self.bodies:
                 if body.name == 'terra':
+
+                    # This position will be later used for the starting point of the rocket.
                     self.zx = body.x
                     self.zy = body.y
 
@@ -259,59 +271,67 @@ class Mainloop(object):
                     endgame()
                 elif event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
-                        print("Game terminated.")
                         endgame()
 
                     elif event.key == K_c and body.name == 'rocket':
                         self.thrust = self.thrust - 0.1
                     elif event.key == K_RETURN and body.name == 'terra':
                         if not [i for i in self.bodies if i.name == 'rocket']:
-                            direction = math.atan2(self.tvy, self.tvx)
+
+                            # Direction in which rocket will launch from Earth.
+                            # Just not to catapult rocket in the Sun. :D
+                            direction = math.atan2(self.terra_sol_component_y, self.terra_sol_component_x)
                             vx = math.cos(direction)
                             vy = math.sin(direction)
-                            self.bodies.insert(0, Body('rocket', 0, Colors.WHITE, self.zx+1, self.zy+1, vx*6, vy*6, 1, 1, (0,0)
-                                                  )
-                                           )
+                            self.bodies.insert(
+                                0,
+                                Body(
+                                    'rocket',
+                                    type='rocket',
+                                    color=Colors.WHITE,
+                                    x=self.zx + 1, y=self.zy + 1,
+                                    velocityx=vx * 6, velocityy=vy * 6,
+                                    mass=1,
+                                    size=1,
+                                )
+                            )
                             self.fuel = 1000
                             self.landing_vehicles = 3
                             self.sound.play('takeoff')
                             self.vectorx = 0
                             self.vectory = 0
-                    elif event.key == K_RETURN:
-                        if body.name == 'rocket':
-                            rx = body.x
-                            ry = body.y
-                            lv = [i for i in self.bodies if "landing vehicle" in i.name]
-                            if lv:
-                                #self.rdist = math.sqrt((rx - lx)**2 + (ry - ly)**2)
-                                if self.rdist < 30:
-                                    self.rocket_circle += 10
-                                    self.rdist = 100
-                                    self.del_body(lv[0].name)
-                                    self.landing_vehicles += 1
-                                    self.landing_vehicle_lock = True
 
-                            if self.landing_vehicles > 0 and not self.landing_vehicle_lock:
-                                self.bodies.insert(
-                                    0,
-                                    Body('landing vehicle %s' % random.randint(1, 100),
-                                         5, Colors.GINGER,
-                                         body.x, body.y,
-                                         body.velocityx + self.sin * 30,
-                                         body.velocityy + self.cos * 30,
-                                         1, 2,
-                                         (0,0)
-                                    )
-                                )
-                                self.rocket_circle -= 10
-                                self.landing_vehicles -= 1
-                                lx = body.x
-                                ly = body.y
-                                self.sound.play('takeoff')
-                                self.landing_vehicle_lock = True
-                        elif "landing vehicle" in body.name:
-                            lx = body.x
-                            ly = body.y
+                    elif event.key == K_RETURN and body.name == 'rocket':
+                        self.launch_landing_vehicle(body)
+
+    def launch_landing_vehicle(self, body):
+        landing_vehicles = [i for i in self.bodies if type == "landing_vehicle"]
+        if landing_vehicles:
+            if self.rdist < 30:
+                self.rocket_circle += 10
+                self.rdist = 100
+                self.del_body(landing_vehicles[0].name)
+                self.landing_vehicles += 1
+                self.landing_vehicle_lock = True
+
+        if self.landing_vehicles > 0 and not self.landing_vehicle_lock:
+            self.bodies.insert(
+                0,
+                Body(
+                    'landing vehicle %s' % random.randint(1, 100),
+                    type='landing_vehicle',
+                    color=Colors.GINGER,
+                    x=body.x, y=body.y,
+                    velocityx=body.velocityx + self.sin * 30,
+                    velocityy=body.velocityy + self.cos * 30,
+                    mass=1,
+                    size=2,
+                )
+            )
+            self.rocket_circle -= 10
+            self.landing_vehicles -= 1
+            self.sound.play('takeoff')
+            self.landing_vehicle_lock = True
 
     def rocket_dynamics(self):
         if self.rocket_angle > math.radians(360):
@@ -339,7 +359,7 @@ class Mainloop(object):
                 self.rcs_thruster(body.x, body.y, "l")
                 self.rocket_angle = self.rocket_angle + math.radians(4)
             if keys[K_SPACE]:
-                # sound.play('space')
+                # self.sound.play('space')
                 self.thrust = 1.2
                 if self.cooldown < 20 and self.fuel > 0:
                     self.fuel -= 1
@@ -355,18 +375,31 @@ class Mainloop(object):
                 s.surface.blit(zzz, (s.window_width/2, s.window_height/2))
 
     def rcs_thruster(self, x, y, param):
+        """
+        Engine that rotates the rocket.
+        """
         if self.count > 0:
             if param == 'l':
-                self.thrl += 0.25
-                wsp1 = (x-self.camx+self.cos*8, y-self.camy-self.sin*8)
-                wsp2 = (x-self.camx-self.cos*5, y-self.camy+self.sin*5)
-    
+                self.rocket_thruster_left += 0.25
+                coord1 = (x-self.camx+self.cos*8, y-self.camy-self.sin*8)
+                coord2 = (x-self.camx-self.cos*5, y-self.camy+self.sin*5)
+
             else:
-                self.thrr += 0.25
-                wsp1 = (x-self.camx-self.cos*8, y-self.camy+self.sin*8)
-                wsp2 = (x-self.camx+self.cos*5, y-self.camy-self.sin*5)
-            pygame.draw.line(s.surface, Colors.OCEAN, (x-self.camx+self.sin*6, y-self.camy+self.cos*6), wsp1, 2)
-            pygame.draw.line(s.surface, Colors.OCEAN, (x-self.camx-self.sin*2, y-self.camy-self.cos*2), wsp2, 2)
+                self.rocket_thruster_right += 0.25
+                coord1 = (x-self.camx-self.cos*8, y-self.camy+self.sin*8)
+                coord2 = (x-self.camx+self.cos*5, y-self.camy-self.sin*5)
+
+            pygame.draw.line(
+                s.surface, Colors.OCEAN,
+                (x - self.camx + self.sin * 6, y-self.camy+self.cos*6),
+                coord1, 2
+            )
+            pygame.draw.line(
+                s.surface,
+                Colors.OCEAN,
+                (x - self.camx - self.sin * 2, y - self.camy - self.cos * 2),
+                coord2, 2
+            )
 
     def thrust_trail(self, x, y):
         rand1 = random.randint(1, 3)
@@ -378,57 +411,78 @@ class Mainloop(object):
     def counter(self):
         self.count += 1
         if self.count >= 6:
-           self.count = 0
+            self.count = 0
 
     def del_body(self, body):
+        """
+        Remove the body from the list.
+        """
         for i, o in enumerate(self.bodies):
             if o.name == body:
                 del self.bodies[i]
 
-    def load_fuel(self):
-        self.fuel = self.fuel + 1
+    def load_fuel(self, body):
+        """
+        Add the fuel to the rocket tank.
+        """
+        loaded_fuel_amount = 1
+
+        # Loading fuel from colonies should be faster.
+        if body.name in [colony.planet for colony in self.colonies]:
+            loaded_fuel_amount = 100
+
+        self.fuel = self.fuel + loaded_fuel_amount
         if self.fuel > 1000:
-            self.fuel = 1000
+           self.fuel = 1000
 
     def fuel_out(self, body1, body2, distance):
+        """
+        If rocket is very far away and have very little fuel, it obviously won't be able go back.
+        """
         if body1.name == 'sol' and body2.name == 'rocket':
             if distance > 10000 and self.fuel < 1:
                 msg = "You ran out of self.fuel! Point of no return."
-                endgame_gry = fonts.end.render(msg, 1, Colors.WHITE)
-                s.surface.blit(endgame_gry, (400, 400))
+                endgame = fonts.end.render(msg, 1, Colors.WHITE)
+                s.surface.blit(endgame, (400, 400))
                 pygame.display.update()
                 time.sleep(2)
                 self.rockets -= 1
                 self.del_body("rocket")
 
     def distant_bodies_remover(self, body1, body2, distance):
-        if body1.name == 'sol' and body2.type != 0:
+        """
+        Body garbage collector to relieve the cpu.
+        """
+        if body1.name == 'sol' and body2.type != 'rocket':
             if distance > 40000:
                 self.del_body(body2.name)
                 print("Body %s removed." % body2.name)
 
     def collisions(self, body1, body2, distance):
         # If rocket collides a star:
-        if body1.type == 0 and body2.type == 1:
+        if body1.type == 'rocket' and body2.type == 'star':
             if distance < body2.size:
-                self.lose_rocket(body1)
+                self.rocket_destroyed(body1)
 
         # If landing vehicle collides a star:
-        if body1.type == 5 and body2.type == 1:
+        if body1.type == 'landing_vehicle' and body2.type == 'star':
             if distance < body2.size:
                 self.del_body(body1.name)
 
         # If planet collides a star or another planet:
-        if body1.type == 2 and (body2.type == 1 or body2.type == 2):
+        if body1.type == 'planet' and (body2.type == 'star' or body2.type == 'planet'):
             if distance < body2.size:
                 self.colonies.destroy_colony(body1.name)
 
         # If comet, moon or planet collides a star or a planet:
-        if (body1.type == 3 or body1.type == 4 or body1.type == 2) and (body2.type == 1 or body2.type == 2):
+        if body1.type in ('comet', 'planet', 'moon') and (body2.type in ('star', 'planet')):
             if distance < body2.size:
                 self.del_body(body1.name)
 
-    def lose_rocket(self, body1):
+    def rocket_destroyed(self, body1):
+        """
+        When the rocket collided the star.
+        """
         body1.velocityx = 0
         body1.velocityy = 0
         self.del_body("rocket")
@@ -439,7 +493,7 @@ class Mainloop(object):
         time.sleep(2)
         self.rockets -= 1
 
-    def rockets_available(self):
+    def check_rockets_available(self):
         if self.rockets < 1:
             tresc = "You ran out of rockets. GAME OVER."
             gameover = fonts.basic.render(tresc, 1, Colors.WHITE)
@@ -448,14 +502,12 @@ class Mainloop(object):
             endgame()
 
     def victory_conditions(self):
-        col_with_3_level = [c for c in self.colonies.c if c.level >= 3]
-        if len(self.colonies.c) >= 2:
+        col_with_3_level = [c for c in self.colonies if c.level >= 3]
+        if len(self.colonies) >= 2:
             if len(col_with_3_level) >= 2:
-                print("You won!")
-
-    def points(self):
-        i = 0
-        for x in range(0, 1000, 180):
-            for y in range(0, 1000, 180):
-                self.bodies.append(Body(str(i), 6, Colors.RED, x, y, 0, 0, 1, 1, []))
-                i += 1
+                msg = ""
+                gameover = fonts.end.render(msg, 1, Colors.WHITE)
+                s.surface.blit(gameover, (200, 300))
+                pygame.display.update()
+                time.sleep(2)
+                endgame()

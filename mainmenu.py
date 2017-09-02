@@ -57,16 +57,21 @@ class Menu(object):
             print(e)
 
     def bodies_list(self):
-        pygame.draw.rect(self.s.surface, Colors.DARKGRAY, (self.s.pol_szer-400, self.s.pol_wys, 400, len(self.addd.bodies)*22), 0)
+        pygame.draw.rect(
+            self.s.surface,
+            Colors.DARKGRAY,
+            (self.s.pol_szer - 400, self.s.pol_wys, 400, len(self.addd.bodies) * 22),
+            0
+        )
         x = 2
-        for cialo in self.addd.bodies:
-            if cialo.type != 0:
+        for body in self.addd.bodies:
+            if body.type != 'rocket':
                 x = x + 20
-                self.star_desc = "[star] "+cialo.name+" "+str(cialo.mass)
-                self.planet_desc = "[planet] "+cialo.name+" "+str(cialo.mass)
+                self.star_desc = "[star] " + body.name + " " + str(body.mass)
+                self.planet_desc = "[planet] " + body.name + " " + str(body.mass)
                 star_list = self.fonts.subtitle.render(self.star_desc, 1, Colors.WHITE)
                 planet_list = self.fonts.subtitle.render(self.planet_desc, 1, Colors.GRAY)
-                if cialo.type == 1:
+                if body.type == 'star':
                     self.s.surface.blit(star_list, (self.s.pol_szer-400, self.s.pol_wys+x))
                 else:
                     self.s.surface.blit(planet_list, (self.s.pol_szer-370, self.s.pol_wys+x))
