@@ -21,6 +21,8 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 from conf import *
+from conf import fonts, Colors
+
 
 class Colony(object):
         
@@ -28,6 +30,7 @@ class Colony(object):
         self.planet = planet
         self.resources = resources
         self.level = level
+
 
 class Colonies(object):
 
@@ -55,18 +58,14 @@ class Colonies(object):
                 del self.c[i]
 
     def resources_terra(self, body1, body2, distance):
-        if (body1.type == 0 and body2.name == 'terra'):
-            if distance < 16:
-                 return True
-            else:
-                 return False
+        if (body1.type == 0 and body2.name == 'terra' and distance < 16):
+            return True
+        return False
 
     def load_resources(self):
         return 1
 
     def show_col(self, kamerax, kameray):
-        #tekst_zasoby = cz.czcionka.render("Resources on board:  "+ str(self.rocket_resources), 2, OCEAN)
-        #s.surface.blit(tekst_zasoby, (s.szer_okna-300, s.wys_okna-50))
         for i, colony in enumerate(self.c):
             if colony.resources >= 20:
                 colony.level = 3
@@ -76,15 +75,13 @@ class Colonies(object):
                 colony.level = 1
 
             if colony.level > 0:
-                tekst_colony = cz.czcionka.render("%s colony, level: %s" % (colony.planet, colony.level), 2, RUDY)
-                s.surface.blit(tekst_colony, (s.szer_okna-300, s.wys_okna/20*i))
-                #koll = cz.czcionka.render("Colony level %s " % str(colony.level), 1, RUDY)
-                #s.surface.blit(koll, (s.szer_okna-300, s.wys_okna-20))
+                tekst_colony = fonts.basic.render("%s colony, level: %s" % (colony.planet, colony.level), 2, Colors.GINGER)
+                s.surface.blit(tekst_colony, (s.window_width-300, s.window_height/20*i))
 
     def colony_caption(self, body, camx, camy):
         for col in self.c:
             if col.planet == body.name: 
-                pygame.draw.line(s.surface, ORANGE, (int(body.x-camx+15), int(body.y-camy+12)), (int(body.x-camx+15+col.resources), int(body.y-camy+12)), 4)
-                koll = cz.czcionka_desc.render("Colony level %s " % col.level, 1, RUDY)
+                pygame.draw.line(s.surface, Colors.ORANGE, (int(body.x-camx+15), int(body.y-camy+12)), (int(body.x-camx+15+col.resources), int(body.y-camy+12)), 4)
+                koll = fonts.desc.render("Colony level %s " % col.level, 1, Colors.GINGER)
                 s.surface.blit(koll, (int(body.x-camx+23), int(body.y-camy+41)))
 

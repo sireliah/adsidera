@@ -1,10 +1,9 @@
-#!/usr/bin/python
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 """
     Adsidera v1.0 Space gravity game
     for more info, please visit http://sourceforge.net/projects/adsidera/
- 
+
     Copyright (C) 2013 Piotr Gołąb
 
     This program is free software: you can redistribute it and/or modify
@@ -21,16 +20,15 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from conf import *
-from functions import *
+from conf import GameSettings
+from functions import Mainloop
 
 
 def main():
-    mainloop = Mainloop(camx, camy)
+    mainloop = Mainloop(GameSettings.INIT_CAMX, GameSettings.INIT_CAMY)
     while True:
         mainloop.play()
 
 
 if __name__ == '__main__':
     main()
-
