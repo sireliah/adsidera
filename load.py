@@ -59,8 +59,8 @@ class Surface(object):
         f = pygame.display.list_modes(32)[self.fil]
         self.window_width = f[0]
         self.window_height = f[1]
-        self.pol_szer = int(self.window_width/2)
-        self.pol_wys = int(self.window_height/2)
+        self.half_width = int(self.window_width/2)
+        self.half_height = int(self.window_height/2)
         self.surface = pygame.display.set_mode(
             (self.window_width, self.window_height), FULLSCREEN | HWSURFACE | DOUBLEBUF)
 

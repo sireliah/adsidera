@@ -25,24 +25,21 @@ class Menu(object):
         self.load_static()
 
     def blocks(self):
-        self.rect_start = Rect(self.s.pol_szer+200, self.s.pol_wys-100, 400, 50)
-        self.rect_rand = Rect(self.s.pol_szer+200, self.s.pol_wys-50, 400, 50)
-        self.rect_start_screen = Rect(self.s.pol_szer+200, self.s.pol_wys+300, 400, 50)
-        self.rect_res = Rect(self.s.pol_szer+200, self.s.pol_wys, 400, 50)
-        self.rect_quit = Rect(self.s.pol_szer+200, self.s.pol_wys+50, 400, 50)
+        self.rect_start = Rect(self.s.half_width+200, self.s.half_height-100, 400, 50)
+        self.rect_rand = Rect(self.s.half_width+200, self.s.half_height-50, 400, 50)
+        self.rect_start_screen = Rect(self.s.half_width+200, self.s.half_height+300, 400, 50)
+        self.rect_res = Rect(self.s.half_width+200, self.s.half_height, 400, 50)
+        self.rect_quit = Rect(self.s.half_width+200, self.s.half_height+50, 400, 50)
 
     def load_static(self):
-        try:
-            self.background = pygame.image.load('data/back.png')
-            self.background_rect = self.background.get_rect(center=(self.s.pol_szer, self.s.pol_wys))
-        except Exception as e:
-            print(e)
+        self.background = pygame.image.load('data/bg-space-flat-2.png')
+        self.background_rect = self.background.get_rect(center=(self.s.half_width, self.s.half_height))
 
-        try:
-            self.title = pygame.image.load('data/title.png')
-            self.title_rect = self.background.get_rect(center=(self.s.pol_szer+200, self.s.pol_wys*0.8))
-        except Exception as e:
-            print(e)
+        self.background2 = pygame.image.load('data/bg-space-flat.png')
+        self.background2_rect = self.background.get_rect(center=(self.s.half_width, self.s.half_height))
+
+        self.title = pygame.image.load('data/title.png')
+        self.title_rect = self.background.get_rect(center=(self.s.half_width+200, self.s.half_height*0.9))
 
     def show_title(self):
         try:
@@ -50,17 +47,17 @@ class Menu(object):
         except Exception as e:
             print(e)
 
-    def show_background(self):
-        try:
+    def show_background(self, stage=1):
+        if stage == 1:
             self.s.surface.blit(self.background, self.background_rect)
-        except Exception as e:
-            print(e)
+        else:
+            self.s.surface.blit(self.background2, self.background2_rect)
 
     def bodies_list(self):
         pygame.draw.rect(
             self.s.surface,
             Colors.DARKGRAY,
-            (self.s.pol_szer - 400, self.s.pol_wys, 400, len(self.addd.bodies) * 22),
+            (self.s.half_width - 400, self.s.half_height, 400, len(self.addd.bodies) * 22),
             0
         )
         x = 2
@@ -72,9 +69,9 @@ class Menu(object):
                 star_list = self.fonts.subtitle.render(self.star_desc, 1, Colors.WHITE)
                 planet_list = self.fonts.subtitle.render(self.planet_desc, 1, Colors.GRAY)
                 if body.type == 'star':
-                    self.s.surface.blit(star_list, (self.s.pol_szer-400, self.s.pol_wys+x))
+                    self.s.surface.blit(star_list, (self.s.half_width-400, self.s.half_height+x))
                 else:
-                    self.s.surface.blit(planet_list, (self.s.pol_szer-370, self.s.pol_wys+x))
+                    self.s.surface.blit(planet_list, (self.s.half_width-370, self.s.half_height+x))
 
     def block_start(self):
         pygame.draw.rect(self.s.surface, Colors.WHITE, self.rect_start, 0)
@@ -95,10 +92,10 @@ class Menu(object):
 
         ren1 = self.fonts.bigger.render(text1, 1, Colors.WHITE)
         ren2 = self.fonts.bigger.render(text2, 1, Colors.WHITE)
-        ren3 = self.fonts.bigger.render(text3, 1, Colors.GRAY)
+        ren3 = self.fonts.bigger.render(text3, 1, Colors.WHITE)
 
         for i, t in enumerate((ren3, ren2, ren1)):
-            self.s.surface.blit(t, (int(self.s.pol_szer/3), int(self.s.pol_wys/(i+2))))
+            self.s.surface.blit(t, (int(self.s.half_width/3), int(self.s.half_height/(i+2))))
         pygame.draw.rect(self.s.surface, Colors.WHITE, self.rect_start_screen, 0)
         self.start_screen_text = "Start game"
         text = self.fonts.subtitle.render(self.start_screen_text, 1, Colors.GRAY)
@@ -125,7 +122,7 @@ class Menu(object):
                 self.addd.solar_system_bodies()
                 self.addd.rand_systems()
                 pygame.draw.rect(self.s.surface, Colors.OCEAN, self.rect_quit, 0)
-            elif self.rect_quit.collidepoint(self.pos):    
+            elif self.rect_quit.collidepoint(self.pos):
                 sys.exit()
             elif self.rect_res.collidepoint(self.pos):
                 self.i = self.switch()
@@ -144,13 +141,14 @@ class Menu(object):
 
     def display_modes(self):
         self.res_info = pygame.display.Info()
-        text = self.fonts.subtitle.render(str(self.res_info.current_w)+" x "+str(self.res_info.current_h), 1, Colors.WHITE)
+        text = self.fonts.subtitle.render(
+            str(self.res_info.current_w) + " x " + str(self.res_info.current_h), 1, Colors.WHITE)
         self.s.surface.blit(text, (30, 30))
 
     def version(self):
-        text = self.fonts.subtitle.render(__version__, 1, Colors.WHITE)    
+        text = self.fonts.subtitle.render(__version__, 1, Colors.WHITE)
         self.s.surface.blit(text, (self.s.window_width-150, self.s.window_height-50))
-    
+
     def switch(self):
         self.i += 1
         if self.i > 5:
@@ -174,7 +172,7 @@ class Menu(object):
             self.controls()
             self.s.surface.fill(Colors.BLACK)
             if self.start_screen:
-                self.show_background()
+                self.show_background(stage=2)
                 self.block_start_screen()
                 self.hover([(self.rect_start_screen, self.start_screen_text)])
             else:
