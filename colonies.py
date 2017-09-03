@@ -13,6 +13,11 @@ class Colony(object):
 
 class Colonies(list):
 
+    """
+    Colonies implemented as list of Colony objects.
+    A colony has level based on the number of landing vehicles that landed on the planet.
+    """
+
     def __init__(self, rocket_resources):
         self.rocket_resources = rocket_resources
 
@@ -21,9 +26,12 @@ class Colonies(list):
 
         if body1.type == 'landing_vehicle' and (body2.type in ('planet', 'other')) and body2.name != 'terra':
             if distance < 20:
-                # If there is no colony on this planet:
+
+                # If there is no colony on this planet, add one.
                 if not [i for i in self if i.planet == body2.name]:
                     self.append(Colony(body2.name, 0, 0))
+
+                # If there is a colony already, raise it's level.
                 else:
                     for a in self:
                         if a.planet == body2.name:

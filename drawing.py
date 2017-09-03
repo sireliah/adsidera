@@ -25,7 +25,6 @@ class Trajectory(object):
             del body.trail[0]
 
     def draw_points(self, trail, camx, camy, length):
-
         for (counter, (pointx, pointy)) in enumerate(trail):
             if counter > length/1.2:
                 pygame.draw.circle(s.surface, Colors.WHITE, (int(pointx-camx), int(pointy-camy)), 2, 2)
@@ -53,13 +52,13 @@ class Drawing(Trajectory):
 
     def draw_objects(self, body, camx, camy, sin, cos, imx, imy, count, colonies):
 
-        if body.type not in ('star', 'moon', '???'):
+        if body.type not in ('star', 'moon',):
             self.add_points(body, 250, count)
 
         # Make sure that we are drawing objects that are within screen view.
         if (body.x > camx and body.x > camx-s.window_width) and (body.y > camy and body.y > camy-s.window_height):
             # Neither star nor moon.
-            if body.type not in ('star', 'moon', '???'):
+            if body.type not in ('star', 'moon',):
                 self.draw_points(body.trail, camx, camy, 250)
 
             if body.type == 'star':
@@ -73,28 +72,13 @@ class Drawing(Trajectory):
 
             colonies.colony_caption(body, camx, camy)
 
-            if body.name != 'luna' and body.name != 'rocket' and body.type != '???':
+            if body.name not in ('luna', 'rocket'):
                 object_caption(int(body.x-camx), int(body.y-camy), body.name)
-            if body.type == '???':
-                an = math.atan2(body.velocityx, body.velocityy)
-                if not math.isnan(an):
-                    an = an - math.pi
-                    x = math.sin(an)
-                    y = math.cos(an)
-                    """
-                    WOW
-                    pygame.draw.line(s.surface, Colors.RED,
-                                     (body.x-camx, body.y-camy),
-                                     ((body.x-x-camx)*2, (body.y-y-camy)*2),
-                                     1)
-                    """
-                    pygame.draw.line(s.surface, Colors.RED,
-                                     (int(body.x-camx), int(body.y-camy)),
-                                     (int(body.x-camx-(x*100)), int(body.y-camy-(y*100))),
-                                     1)
 
     def draw_stars(self, camx, camy):
         for starx, stary in self.stars:
+
+            # Make sure to draw only visible start, otherwise this will kill the cpu.
             if (starx > camx and starx > camx-s.window_width) and (stary > camy and stary > camy-s.window_height):
                 pygame.draw.circle(s.surface, Colors.WHITE, (int(starx-camx), int(stary-camy)), 1, 1)
 
@@ -123,17 +107,21 @@ def star(body, camx, camy):
     pygame.draw.circle(s.surface, body.color, (int(body.x-camx), int(body.y-camy)), body.size+5, 1)
 
 
-def draw_trail(trail_list):
-    los = random.randint(1, 4)
-    los1 = random.randint(4, 10)
-    los2 = random.randint(2, 8)
-    if trail_list:
-        listax, listay = trail_list[-1]
-        pygame.draw.circle(s.surface, Colors.ORANGE2, (int(listax), int(listay)), los, 1)
-        pygame.draw.circle(s.surface, Colors.ORANGE, trail_list[-2], los1, 2)
-        pygame.draw.circle(s.surface, Colors.RED, trail_list[-3], los2, 2)
+def draw_exhaust(exhaust_list):
+    """
+    When the engine is working, you can see the exhaust flame.
+    """
+    random_size = random.randint(1, 4)
+    random_size1 = random.randint(4, 10)
+    random_size2 = random.randint(2, 8)
 
-        del trail_list[0]
+    if exhaust_list:
+        list_x, list_y = exhaust_list[-1]
+        pygame.draw.circle(s.surface, Colors.ORANGE2, (int(list_x), int(list_y)), random_size, 1)
+        pygame.draw.circle(s.surface, Colors.ORANGE, exhaust_list[-2], random_size1, 2)
+        pygame.draw.circle(s.surface, Colors.WHITE, exhaust_list[-3], random_size2, 2)
+
+        del exhaust_list[0]
 
 
 class HUD(object):
@@ -195,9 +183,13 @@ class HUD(object):
         self.draw_map()
 
     def gravimeter(self, gforce, fuel_dist):
+        """
+        Gauge that point to the strongest gravity well.
+        """
         angle = math.atan2(gforce[0], gforce[1])
         if math.isnan(angle):
             angle = 0
+
         pygame.draw.line(
             s.surface,
             Colors.RED,
@@ -207,19 +199,19 @@ class HUD(object):
         )
 
         vert1 = (
-            int(self.body.x - self.camx - math.sin(angle) * 60),
-            int(self.body.y - self.camy - math.cos(angle) * 60)
+            int(self.body.x - self.camx - math.sin(angle) * 90),
+            int(self.body.y - self.camy - math.cos(angle) * 90)
         )
         vert2 = (
-            int(self.body.x - self.camx - 3 - math.sin(angle) * 30),
-            int(self.body.y - self.camy - 3 - math.cos(angle) * 30)
+            int(self.body.x - self.camx - 6 - math.sin(angle) * 50),
+            int(self.body.y - self.camy - 6 - math.cos(angle) * 50)
         )
         vert3 = (
-            int(self.body.x - self.camx + 6 - math.sin(angle) * 30),
-            int(self.body.y - self.camy + 6 - math.cos(angle) * 30)
+            int(self.body.x - self.camx + 6 - math.sin(angle) * 50),
+            int(self.body.y - self.camy + 6 - math.cos(angle) * 50)
         )
 
-        pygame.draw.polygon(s.surface, Colors.GREEN, (vert1, vert2, vert3), 2)
+        pygame.draw.polygon(s.surface, Colors.ORANGE2, (vert1, vert2, vert3), 2)
         pygame.draw.circle(
             s.surface, Colors.DARKGRAY,
             (int(self.body.x-self.camx), int(self.body.y-self.camy)),
@@ -273,22 +265,21 @@ class HUD(object):
         map_camera_y = 0
 
         for c in self.bodies:
-            if c.type != '???':
-                if [i for i in self.bodies if i.type == 'rocket']:
-                    if c.type == 'rocket':
-                        map_camera_x = int(c.x / 20 - 100)
-                        map_camera_y = int(c.y / 20 - 100)
+            if [i for i in self.bodies if i.type == 'rocket']:
+                if c.type == 'rocket':
+                    map_camera_x = int(c.x / 20 - 100)
+                    map_camera_y = int(c.y / 20 - 100)
 
-                else:
-                    if c.name == 'terra':
-                        map_camera_x = int(c.x / 20 - 100)
-                        map_camera_y = int(c.y / 20 - 100)
-                        if self.rockets > 0:
-                            enter_txt = fonts.basic.render(u"Hit ENTER to take off. ", 1, Colors.WHITE)
-                            s.surface.blit(enter_txt, (s.window_width-700, s.window_height-500))
+            else:
+                if c.name == 'terra':
+                    map_camera_x = int(c.x / 20 - 100)
+                    map_camera_y = int(c.y / 20 - 100)
+                    if self.rockets > 0:
+                        enter_txt = fonts.basic.render(u"Hit ENTER to take off. ", 1, Colors.WHITE)
+                        s.surface.blit(enter_txt, (s.window_width-700, s.window_height-500))
 
-                if map_camera_x != 0 and map_camera_y != 0:
-                    mapx = int(10 + c.x / 20 - map_camera_x)
-                    mapy = int(s.window_height - 200 + c.y / 20 - map_camera_y)
-                    if mapx > 0 and mapx < 200 and mapy > s.window_height-200 and mapy < s.window_height:
-                        pygame.draw.circle(s.surface, c.color, (mapx, mapy), int(c.size / 4), 0)
+            if map_camera_x != 0 and map_camera_y != 0:
+                mapx = int(10 + c.x / 20 - map_camera_x)
+                mapy = int(s.window_height - 200 + c.y / 20 - map_camera_y)
+                if mapx > 0 and mapx < 200 and mapy > s.window_height-200 and mapy < s.window_height:
+                    pygame.draw.circle(s.surface, c.color, (mapx, mapy), int(c.size / 4), 0)

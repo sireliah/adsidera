@@ -30,10 +30,11 @@ class GameSettings:
     CAMERA_MARGIN = 50
     FPS = 40
     CIRCLE_SIZE = 50
-
     ROCKETS = 3
+    LANDING_VEHICLES = 3
     RETARDATION = 120
     G_CONSTANT = 0.2
+    GRAVITY_LIMIT = 150000
 
 
 def endgame():

@@ -7,30 +7,29 @@ from conf import Colors
 
 class Body(object):
 
-    def __init__(self, name='', type='', color='', x=0, y=0, velocityx=0, velocityy=0, mass=0, size=0, trail=[]):
+    def __init__(self, name='', type='', color='', x=0, y=0, velocity_x=0, velocity_y=0, mass=0, size=0, trail=[]):
         self.name = name
         self.type = type
         self.color = color
         self.x = x
         self.y = y
-        self.velocityx = velocityx
-        self.velocityy = velocityy
+        self.velocity_x = velocity_x
+        self.velocity_y = velocity_y
         self.mass = mass
         self.size = size
         self.trail = [(0, 0)]
         """
         types:
-        0 - maneuverable object (rocket)
-        1 - star
-        2 - planet
-        3 - moon
-        4 - other
-        5 - landing vehicle
-        6 - ???
+        - maneuverable object (rocket)
+        - star
+        - planet
+        - moon
+        - other
+        - landing vehicle
         """
 
 
-class BodiesCreator(object):
+class BodyCreator(object):
 
     def __init__(self, star_names, planet_names):
         self.bodies = []
@@ -53,7 +52,7 @@ class BodiesCreator(object):
                 type='star',
                 color=Colors.WHITE,
                 x=400, y=350,
-                velocityx=2, velocityy=0,
+                velocity_x=2, velocity_y=0,
                 mass=12000,
                 size=22,
             )
@@ -64,7 +63,7 @@ class BodiesCreator(object):
                 type='rocket',
                 color=Colors.WHITE,
                 x=300, y=-150,
-                velocityx=0, velocityy=0,
+                velocity_x=0, velocity_y=0,
                 mass=1,
                 size=1,
             )
@@ -75,7 +74,7 @@ class BodiesCreator(object):
                 type='planet',
                 color=Colors.ORANGE,
                 x=400, y=10,
-                velocityx=27, velocityy=0,
+                velocity_x=27, velocity_y=0,
                 mass=350,
                 size=7,
             )
@@ -86,7 +85,7 @@ class BodiesCreator(object):
                 type='planet',
                 color=Colors.OCEAN,
                 x=400, y=140,
-                velocityx=30, velocityy=0,
+                velocity_x=30, velocity_y=0,
                 mass=400,
                 size=9,
             )
@@ -97,7 +96,7 @@ class BodiesCreator(object):
                 type='planet',
                 color=Colors.IOVIS,
                 x=400, y=-300,
-                velocityx=22, velocityy=0,
+                velocity_x=22, velocity_y=0,
                 mass=1000,
                 size=12,
             )
@@ -108,7 +107,7 @@ class BodiesCreator(object):
                 type='planet',
                 color=Colors.YELLOW,
                 x=400, y=-700,
-                velocityx=20, velocityy=0,
+                velocity_x=20, velocity_y=0,
                 mass=600,
                 size=10,
             )
@@ -119,19 +118,29 @@ class BodiesCreator(object):
                 type='moon',
                 color=Colors.WHITE,
                 x=400, y=150,
-                velocityx=3, velocityy=0,
+                velocity_x=3, velocity_y=0,
                 mass=8,
                 size=4,
             )
         )
 
-    def random_int(self):
-        self.randint = random.randint(-8000, 8000)
-        while (self.randint > -2000) or (self.randint < 2000):
-            self.randint = random.randint(-8000, 8000)
-            if self.randint < -2000 or self.randint > 2000:
-                return self.randint
-                break
+    def generate_random_int_range(self):
+        """
+        Keep picking coordinates untill they match certain criteria.randint
+
+        yes yes yes yes yes
+        yes |---------| yes
+        yes | no no no| yes
+        yes | no no no| yes
+        yes |---------| yes
+        yes yes yes yes yes
+
+        """
+        randint = random.randint(-8000, 8000)
+        while (randint > -2000) or (randint < 2000):
+            randint = random.randint(-8000, 8000)
+            if randint < -2000 or randint > 2000:
+                return randint
 
     def rand_systems(self):
         """
@@ -140,17 +149,20 @@ class BodiesCreator(object):
         self.stars_num = random.randint(1, 5)
 
         def rand_planet(dist, mass_coe):
+            """
+            Generate planet that should be in proportional size and mass to it's start.
+            """
             self.exoplanet_color = random.sample(self.colors, 1)
             self.planet_name = ''.join(random.sample(self.planet_names, 1))
             planet_mass = int(self.mass * mass_coe)
-            planet_radius = int(random.randint(int(self.radius*0.1), int(self.radius*0.7)))
+            planet_radius = int(random.randint(int(self.radius * 0.1), int(self.radius * 0.7)))
             self.bodies.append(
                 Body(
                     self.planet_name,
                     type='planet',
                     color=self.exoplanet_color[0],
                     x=self.x + dist, y=self.y + dist,
-                    velocityx=35, velocityy=0,
+                    velocity_x=35, velocity_y=0,
                     mass=planet_mass,
                     size=planet_radius,
                 )
@@ -161,11 +173,13 @@ class BodiesCreator(object):
             self.color = random.sample(self.colors, 1)
             self.mass = random.randint(900, 120000)
             self.radius = random.randint(10, 50)
+
             for star in self.bodies:
                 if star.type == 'star':
-                    self.x = self.random_int()
-                    self.y = self.random_int()
-                    dist = math.sqrt((star.x-self.x)**2 + (star.y-self.y)**2)
+                    self.x = self.generate_random_int_range()
+                    self.y = self.generate_random_int_range()
+                    dist = math.sqrt((star.x - self.x) ** 2 + (star.y - self.y) ** 2)
+
                     if dist > 2000:
                         self.bodies.append(
                             Body(
@@ -173,19 +187,19 @@ class BodiesCreator(object):
                                 type='star',
                                 color=self.color[0],
                                 x=self.x, y=self.y,
-                                velocityx=0, velocityy=0,
+                                velocity_x=0, velocity_y=0,
                                 mass=self.mass,
                                 size=self.radius,
                             )
                         )
-                        self.exoplanet = random.randint(1, 6)
+                        self.exoplanet_variation = random.randint(1, 6)
                         self.planet_name = ''.join(random.sample(self.planet_names, 1))
 
-                        if self.exoplanet >= 2:
+                        if self.exoplanet_variation >= 2:
                             rand_planet(300, 0.012)
-                        if self.exoplanet >= 4:
+                        if self.exoplanet_variation >= 4:
                             rand_planet(600, 0.008)
-                        if self.exoplanet == 6:
+                        if self.exoplanet_variation == 6:
                             rand_planet(800, 0.010)
                         break
 
@@ -194,20 +208,19 @@ class BodiesCreator(object):
     def comets(self):
         randint = random.randint(0, 10000)
         if randint > 9990:
-            print("Comet!")
             mass = random.randint(10, 50)
             size = random.randint(3, 10)
-            x = self.random_int()
-            y = self.random_int()
-            velocityx = random.randint(-1000, 1000)
-            velocityy = random.randint(-1000, 1000)
+            x = self.generate_random_int_range()
+            y = self.generate_random_int_range()
+            velocity_x = random.randint(-1000, 1000)
+            velocity_y = random.randint(-1000, 1000)
             self.bodies.append(
                 Body(
                     'cometa',
                     type='cometa',
                     color=Colors.GRAY,
                     x=x, y=y,
-                    velocityx=velocityx, velocityy=velocityy,
+                    velocity_x=velocity_x, velocity_y=velocity_y,
                     mass=mass,
                     size=size,
                 )

@@ -8,11 +8,11 @@ from pygame import gfxdraw
 from pygame.locals import KEYDOWN, K_RETURN, K_ESCAPE, K_SPACE, K_LEFT, K_RIGHT, K_c, K_g, QUIT
 from numpy import mean
 
-from bodies import Body, BodiesCreator
+from bodies import Body, BodyCreator
 from camera import camera
 from colonies import Colonies
 from conf import fonts, s, sprites, sound, Colors, GameSettings, endgame
-from drawing import Drawing, HUD, draw_trail
+from drawing import Drawing, HUD, draw_exhaust
 from mainmenu import Menu
 from planet_names import PLANET_NAMES, STAR_NAMES
 
@@ -22,35 +22,34 @@ class Mainloop(object):
     def __init__(self, camx, camy):
         self.camx, self.camy = camx, camy
         self.rocket_angle = math.radians(math.pi/2)
-        self.addd = BodiesCreator(STAR_NAMES, PLANET_NAMES)
-        self.bodies = self.addd.rand_systems()
+        self.body_generator = BodyCreator(STAR_NAMES, PLANET_NAMES)
+        self.bodies = self.body_generator.rand_systems()
         self.clock = pygame.time.Clock()
-        mm = Menu(self.addd)
+        mm = Menu(self.body_generator)
         mm.MainScreen()
         s.mouse_invisible()
         self.enter = 0
         self.rdist = 100
-        self.rocket_circle = 100
         self.rocket_resources = 100
         self.count = 0
         self.rockets = GameSettings.ROCKETS
         self.thrust = 1
         self.gforce = (0, 0)
-        self.trail_list = []
+        self.exhaust_list = []
         self.lander_dist = 0
         self.landing_vehicle_lock = False
-        self.landing_vehicles = 3
+        self.landing_vehicles = GameSettings.LANDING_VEHICLES
         self.velocity_components_x, self.velocity_components_y = [], []
         self.cooldown = 0
         self.fuel = 1000
         self.fuel_dist = 0
-        self.vectorx, self.vectory = 1, 1
+        self.vector_x, self.vector_y = 1, 1
         self.landerx, self.landery = 0, 0
-        self.rocket_center_x, self.rocket_center_y = 15, 43
+        self.rocket_center_x, self.rocket_center_y = 15, 35
         self.rocket_thruster_left, self.rocket_thruster_right = 0, 0
         self.rocket_image = sprites.rocket_image.copy()
         self.colonies = Colonies(self.rocket_resources)
-        self.drawing = Drawing(self.camx, self.camy, self.count, sprites, BodiesCreator.generate_stars())
+        self.drawing = Drawing(self.camx, self.camy, self.count, sprites, BodyCreator.generate_stars())
 
     def play(self):
 
@@ -88,7 +87,7 @@ class Mainloop(object):
             """
             self.gforce = (mean(self.velocity_components_x), mean(self.velocity_components_y))
 
-            self.addd.comets()
+            self.body_generator.comets()
             self.drawing.draw_stars(self.camx, self.camy)
 
             # Empty old velocity components lists.
@@ -100,38 +99,53 @@ class Mainloop(object):
             pygame.display.flip()
 
     def bodies_physics(self, body):
-        if [i for i in self.bodies if i.name == 'rocket']:
+        """
+        Move bodies according to the forces that are applied to them.
+        """
+
+        # Rocket and lander physics is slightly different because of the propulsion (vector_x, vector_y)
+        if 'rocket' in [b.name for b in self.bodies]:
 
             if body.name == 'rocket':
-                body.x += body.velocityx + self.vectorx / GameSettings.RETARDATION
-                body.y += body.velocityy + self.vectory / GameSettings.RETARDATION
+                body.x += body.velocity_x + self.vector_x / GameSettings.RETARDATION
+                body.y += body.velocity_y + self.vector_y / GameSettings.RETARDATION
+
                 self.camx, self.camy = camera(self.camx, self.camy, body, center_on='rocket')
 
             elif body.type == 'landing_vehicle':
-                lander_angle = math.atan2(self.landerx, self.landery)
-                if self.lander_dist < 200:
-                    sx = body.velocityx - (math.sin(lander_angle) / 2)
-                    sy = body.velocityy - (math.cos(lander_angle) / 2)
-                else:
-                    sx = body.velocityx / GameSettings.RETARDATION
-                    sy = body.velocityy / GameSettings.RETARDATION
-                body.x += sx
-                body.y += sy
-            elif body.type == '???':
-                pass
-            else:
-                body.x += body.velocityx / GameSettings.RETARDATION
-                body.y += body.velocityy / GameSettings.RETARDATION
 
+                lander_angle = math.atan2(self.landerx, self.landery)
+
+                """
+                Lander will try to point to the nearest source of gravity and slowly move there.
+                Of course it has very little chance to succeed with those tiny engines.
+                """
+                if self.lander_dist < 200:
+                    lander_component_x = body.velocity_x - (math.sin(lander_angle) / 2)
+                    lander_component_y = body.velocity_y - (math.cos(lander_angle) / 2)
+                else:
+                    lander_component_x = body.velocity_x / GameSettings.RETARDATION
+                    lander_component_y = body.velocity_y / GameSettings.RETARDATION
+
+                body.x += lander_component_x
+                body.y += lander_component_y
+            else:
+                body.x += body.velocity_x / GameSettings.RETARDATION
+                body.y += body.velocity_y / GameSettings.RETARDATION
+
+        # When rocket is not present in bodies list, center on terra.
         else:
-            body.x += body.velocityx / GameSettings.RETARDATION
-            body.y += body.velocityy / GameSettings.RETARDATION
+            body.x += body.velocity_x / GameSettings.RETARDATION
+            body.y += body.velocity_y / GameSettings.RETARDATION
+
             self.camx, self.camy = camera(self.camx, self.camy, body, center_on='terra')
 
     def bodies_interactions(self):
 
         for body1 in self.bodies:
             self.control_pressed(body1)
+
+            # Draw HUD. Invoked here, because rocket parameters are needed for the game screen.
             self.hud.main(
                 body1,
                 self.camx,
@@ -145,7 +159,9 @@ class Mainloop(object):
                 self.fuel_dist
             )
             self.rocket_dynamics()
+
             self.bodies_physics(body1)
+
             self.drawing.draw_objects(
                 body1,
                 self.camx,
@@ -169,9 +185,11 @@ class Mainloop(object):
                     self.collisions(body1, body2, distance)
                     self.fuel_out(body1, body2, distance)
 
+                    # This is the lower limit at which two bodies can came close to each other.
                     if distance < 15:
                         distance = 14
-                    if distance < 150000:
+
+                    if distance < GameSettings.GRAVITY_LIMIT:
 
                         """
                         Newton's law of universal gravitation.*
@@ -185,13 +203,14 @@ class Mainloop(object):
                         a = F / body1.mass
 
                         # Calculate velocity components.
-                        componentx = (a * (body1.x - body2.x)) / distance
-                        componenty = (a * (body1.y - body2.y)) / distance
+                        component_x = (a * (body1.x - body2.x)) / distance
+                        component_y = (a * (body1.y - body2.y)) / distance
 
                         if body1.name == 'rocket':
-                            self.velocity_components_x.append(componentx)
-                            self.velocity_components_y.append(componenty)
+                            self.velocity_components_x.append(component_x)
+                            self.velocity_components_y.append(component_y)
 
+                            # In the vincinity of the planet, your fuel is being restored.
                             if body2.type == 'planet':
                                 self.fuel_dist = distance
                                 if self.fuel_dist < 30:
@@ -206,8 +225,8 @@ class Mainloop(object):
                             if body2.type == 'planet':
                                 self.lander_dist = distance
                                 if distance < 200:
-                                    self.landerx = componentx
-                                    self.landery = componenty
+                                    self.landerx = component_x
+                                    self.landery = component_y
                                     if distance < 17:
                                         self.colonies.colony_deployment(body1, body2, distance, self.rocket_resources)
                                         self.del_body(body1.name)
@@ -219,15 +238,15 @@ class Mainloop(object):
                         If rocket was just destroyed, we store the velocity component between Sun and Earth
                         to later calculate in which direction should we launch the new rocket.
                         """
-                        if (not [i for i in self.bodies if i.name == 'rocket'] and
+                        if ('rocket' not in [b.name for b in self.bodies] and
                                 body1.name == 'terra' and body2.name == 'sol'):
-                            self.terra_sol_component_x = componentx
-                            self.terra_sol_component_y = componenty
+                            self.terra_sol_component_x = component_x
+                            self.terra_sol_component_y = component_y
 
                     # Subtract velocity components.
                     if distance < 1500:
-                        body1.velocityx -= componentx
-                        body1.velocityy -= componenty
+                        body1.velocity_x -= component_x
+                        body1.velocity_y -= component_y
 
                     # Remove far objects.
                     self.distant_bodies_remover(body1, body2, distance)
@@ -272,10 +291,10 @@ class Mainloop(object):
                     elif event.key == K_c and body.name == 'rocket':
                         self.thrust = self.thrust - 0.1
                     elif event.key == K_RETURN and body.name == 'terra':
-                        if not [i for i in self.bodies if i.name == 'rocket']:
+                        if 'rocket' not in [b.name for b in self.bodies]:
 
                             # Direction in which rocket will launch from Earth.
-                            # Just not to catapult rocket in the Sun. :D
+                            # Just not to catapult rocket in the Sun. Which happened quite often back then.
                             direction = math.atan2(self.terra_sol_component_y, self.terra_sol_component_x)
                             vx = math.cos(direction)
                             vy = math.sin(direction)
@@ -286,7 +305,7 @@ class Mainloop(object):
                                     type='rocket',
                                     color=Colors.WHITE,
                                     x=self.terra_x + 1, y=self.terra_y + 1,
-                                    velocityx=vx * 6, velocityy=vy * 6,
+                                    velocity_x=vx * 6, velocity_y=vy * 6,
                                     mass=1,
                                     size=1,
                                 )
@@ -294,17 +313,19 @@ class Mainloop(object):
                             self.fuel = 1000
                             self.landing_vehicles = 3
                             sound.play('takeoff')
-                            self.vectorx = 0
-                            self.vectory = 0
+                            self.vector_x = 0
+                            self.vector_y = 0
 
                     elif event.key == K_RETURN and body.name == 'rocket':
                         self.launch_landing_vehicle(body)
 
     def launch_landing_vehicle(self, body):
+        """
+        Add or remove the landing vehicle.
+        """
         landing_vehicles = [i for i in self.bodies if type == "landing_vehicle"]
         if landing_vehicles:
-            if self.rdist < 30:
-                self.rocket_circle += 10
+            if self.rdist < GameSettings.CIRCLE_SIZE:
                 self.rdist = 100
                 self.del_body(landing_vehicles[0].name)
                 self.landing_vehicles += 1
@@ -318,18 +339,26 @@ class Mainloop(object):
                     type='landing_vehicle',
                     color=Colors.GINGER,
                     x=body.x, y=body.y,
-                    velocityx=body.velocityx + self.sin * 30,
-                    velocityy=body.velocityy + self.cos * 30,
+                    velocity_x=body.velocity_x + self.sin * 30,
+                    velocity_y=body.velocity_y + self.cos * 30,
                     mass=1,
                     size=2,
                 )
             )
-            self.rocket_circle -= 10
             self.landing_vehicles -= 1
             sound.play('takeoff')
             self.landing_vehicle_lock = True
 
     def rocket_dynamics(self):
+        """
+        This function governs the:
+        - rotation
+        - reducing the thrust
+        - reducing the x and y force
+        - engine cooldown over time
+
+        of the rocket.
+        """
         if self.rocket_angle > math.radians(360):
             self.rocket_angle = math.radians(0)
         elif self.rocket_angle < math.radians(0):
@@ -340,15 +369,18 @@ class Mainloop(object):
         if self.thrust < 0.01:
             self.thrust = 0.01
 
-        if self.vectorx > 1:
-            self.vectorx - 0.1
-        if self.vectory < 1:
-            self.vectory + 0.1
+        if self.vector_x > 1:
+            self.vector_x - 0.1
+        if self.vector_y < 1:
+            self.vector_y + 0.1
 
         if self.cooldown > 0:
             self.cooldown -= 0.005
 
     def control_pressed(self, body):
+        """
+        Some of the keys can be pressed down and can increment values outside the main game loop.
+        """
         keys = pygame.key.get_pressed()
         if body.name == 'rocket':
             if keys[K_RIGHT]:
@@ -362,12 +394,12 @@ class Mainloop(object):
                 self.thrust = 1.2
                 if self.cooldown < 20 and self.fuel > 0:
                     self.fuel -= 1
-                    self.vectorx += self.sin * self.thrust * 10
-                    self.vectory += self.cos * self.thrust * 10
+                    self.vector_x += self.sin * self.thrust * 10
+                    self.vector_y += self.cos * self.thrust * 10
 
                     # Generate and draw rocket exhaust.
                     self.thrust_trail(int(body.x), int(body.y))
-                    draw_trail(self.trail_list)
+                    draw_exhaust(self.exhaust_list)
                 if self.cooldown < 21:
                     self.cooldown += 0.2
             if keys[K_g]:
@@ -406,16 +438,25 @@ class Mainloop(object):
         """
         Generate rocket exhaust.
         """
+
+        dist_exhaust1 = 50
+        dist_exhaust2 = 70
+        dist_exhaust3 = 100
+
         rand1 = random.randint(1, 3)
         rand2 = random.randint(1, 3)
-        self.trail_list.append(
-            (int(x - self.camx - 13 * self.sin * rand1), int(y - self.camy - 13 * self.cos * rand1))
+
+        self.exhaust_list.append(
+            (int(x - self.camx - dist_exhaust1 * self.sin * rand1),
+             int(y - self.camy - dist_exhaust1 * self.cos * rand1))
         )
-        self.trail_list.append(
-            (int(x - self.camx - 20 * self.sin), int(y - self.camy - 20 * self.cos))
+        self.exhaust_list.append(
+            (int(x - self.camx - dist_exhaust2 * self.sin),
+             int(y - self.camy - dist_exhaust2 * self.cos))
         )
-        self.trail_list.append(
-            (int(x - self.camx - 30 * self.sin * rand1 / rand2), int(y - self.camy - 30 * self.cos * rand1 / rand2))
+        self.exhaust_list.append(
+            (int(x - self.camx - dist_exhaust3 * self.sin * rand1 / rand2),
+             int(y - self.camy - dist_exhaust3 * self.cos * rand1 / rand2))
         )
 
     def counter(self):
@@ -439,7 +480,11 @@ class Mainloop(object):
 
         # Loading fuel from colonies should be faster.
         if body.name in [colony.planet for colony in self.colonies]:
-            loaded_fuel_amount = 100
+            loaded_fuel_amount = 10
+
+            # Also, load a landing vehicle.
+            if self.landing_vehicles <= 1:
+                self.landing_vehicles += 1
 
         self.fuel = self.fuel + loaded_fuel_amount
         if self.fuel > 1000:
@@ -493,8 +538,8 @@ class Mainloop(object):
         """
         When the rocket collided the star.
         """
-        body1.velocityx = 0
-        body1.velocityy = 0
+        body1.velocity_x = 0
+        body1.velocity_y = 0
         self.del_body("rocket")
         msg = "You have collided with the star!"
         gameover = fonts.end.render(msg, 1, Colors.WHITE)

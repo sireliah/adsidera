@@ -40,7 +40,7 @@ class Sprites(object):
         pygame.sprite.Sprite()
         try:
             self.rocket_image = pygame.image.load("./data/fyndiq_rocket.png").convert_alpha()
-            self.rockets = pygame.image.load("data/rocket5.png").convert_alpha()
+            self.rockets = pygame.image.load("data/fyndiq_rocket_hud.png").convert_alpha()
         except Exception:
             print("Problem loading sprites.")
             raise
