@@ -9,9 +9,10 @@ from pygame.locals import KEYDOWN, K_RETURN, K_ESCAPE, K_SPACE, K_LEFT, K_RIGHT,
 from numpy import mean
 
 from bodies import Body, BodiesCreator
+from camera import camera
 from colonies import Colonies
-from conf import fonts, s, Colors, Sound, GameSettings, endgame
-from drawing import Drawing, Sprites, HUD, draw_trail
+from conf import fonts, s, sprites, sound, Colors, GameSettings, endgame
+from drawing import Drawing, HUD, draw_trail
 from mainmenu import Menu
 from planet_names import PLANET_NAMES, STAR_NAMES
 
@@ -27,7 +28,6 @@ class Mainloop(object):
         mm = Menu(self.addd)
         mm.MainScreen()
         s.mouse_invisible()
-        self.sound = Sound()
         self.enter = 0
         self.rdist = 100
         self.rocket_circle = 100
@@ -46,23 +46,34 @@ class Mainloop(object):
         self.fuel_dist = 0
         self.vectorx, self.vectory = 1, 1
         self.landerx, self.landery = 0, 0
-        self.rocket_center_x, self.rocket_center_y = 6, 16
+        self.rocket_center_x, self.rocket_center_y = 15, 43
         self.rocket_thruster_left, self.rocket_thruster_right = 0, 0
-        self.sp = Sprites()
-        self.image_orig = self.sp.image.copy()
+        self.rocket_image = sprites.rocket_image.copy()
         self.colonies = Colonies(self.rocket_resources)
-        self.drawing = Drawing(self.camx, self.camy, self.count, self.sp, BodiesCreator.generate_stars())
+        self.drawing = Drawing(self.camx, self.camy, self.count, sprites, BodiesCreator.generate_stars())
 
     def play(self):
+
+        sound.play('music')
+
         while True:
             self.counter()
             self.victory_conditions()
             self.landing_vehicle_lock = False
+
+            # Fill the background with black to cleanup the screen from old frames.
             s.surface.fill(Colors.BLACK)
+
             self.sin = math.sin(self.rocket_angle)
             self.cos = math.cos(self.rocket_angle)
-            self.hud = HUD(self.bodies, self.sp, self.sin, self.cos, self.clock, self.rockets, self.landing_vehicles)
+
+            # Render static gauges, map, etc.
+            self.hud = HUD(self.bodies, sprites, self.sin, self.cos, self.clock, self.rockets, self.landing_vehicles)
+
+            # Pygame event loop.
             self.events()
+
+            # Emulate physics.
             self.bodies_interactions()
 
             new_center_x, new_center_y = self.transform_rocket_image()
@@ -94,7 +105,7 @@ class Mainloop(object):
             if body.name == 'rocket':
                 body.x += body.velocityx + self.vectorx / GameSettings.RETARDATION
                 body.y += body.velocityy + self.vectory / GameSettings.RETARDATION
-                self.camera(body, center_on='rocket')
+                self.camx, self.camy = camera(self.camx, self.camy, body, center_on='rocket')
 
             elif body.type == 'landing_vehicle':
                 lander_angle = math.atan2(self.landerx, self.landery)
@@ -115,7 +126,7 @@ class Mainloop(object):
         else:
             body.x += body.velocityx / GameSettings.RETARDATION
             body.y += body.velocityy / GameSettings.RETARDATION
-            self.camera(body, center_on='terra')
+            self.camx, self.camy = camera(self.camx, self.camy, body, center_on='terra')
 
     def bodies_interactions(self):
 
@@ -227,29 +238,14 @@ class Mainloop(object):
                     if self.landing_vehicles > 3:
                         self.landing_vehicles = 3
 
-    def camera(self, body, center_on=''):
-        """
-        Move the camera along with the centered object (rocket).
-        """
-
-        if body.name == center_on:
-            if (self.camx + s.pol_szer) - body.x > GameSettings.CAMERA_MARGIN:
-                self.camx = body.x + GameSettings.CAMERA_MARGIN - s.pol_szer
-            elif body.x - (self.camx + s.pol_szer) > GameSettings.CAMERA_MARGIN:
-                self.camx = body.x - GameSettings.CAMERA_MARGIN - s.pol_szer
-            if (self.camy + s.pol_wys) - body.y > GameSettings.CAMERA_MARGIN:
-                self.camy = body.y + GameSettings.CAMERA_MARGIN - s.pol_wys
-            elif body.y - (self.camy + s.pol_wys) > GameSettings.CAMERA_MARGIN:
-                self.camy = body.y - GameSettings.CAMERA_MARGIN - s.pol_wys
-
     def transform_rocket_image(self):
         """
         Get the rocket rectangle and rotate it.
         Return new center, because rectangle is deformed in the process.
         """
-        oldrect = self.sp.image.get_rect()
-        self.sp.image = pygame.transform.rotozoom(self.image_orig, int(math.degrees(self.rocket_angle)), 1)
-        newrect = self.sp.image.get_rect()
+        oldrect = sprites.rocket_image.get_rect()
+        sprites.rocket_image = pygame.transform.rotozoom(self.rocket_image, int(math.degrees(self.rocket_angle)), 1)
+        newrect = sprites.rocket_image.get_rect()
         new_center_x = newrect.centerx - oldrect.centerx
         new_center_y = newrect.centery - oldrect.centery
         return new_center_x, new_center_y
@@ -264,8 +260,8 @@ class Mainloop(object):
                 if body.name == 'terra':
 
                     # This position will be later used for the starting point of the rocket.
-                    self.zx = body.x
-                    self.zy = body.y
+                    self.terra_x = body.x
+                    self.terra_y = body.y
 
                 if event.type == QUIT:
                     endgame()
@@ -289,7 +285,7 @@ class Mainloop(object):
                                     'rocket',
                                     type='rocket',
                                     color=Colors.WHITE,
-                                    x=self.zx + 1, y=self.zy + 1,
+                                    x=self.terra_x + 1, y=self.terra_y + 1,
                                     velocityx=vx * 6, velocityy=vy * 6,
                                     mass=1,
                                     size=1,
@@ -297,7 +293,7 @@ class Mainloop(object):
                             )
                             self.fuel = 1000
                             self.landing_vehicles = 3
-                            self.sound.play('takeoff')
+                            sound.play('takeoff')
                             self.vectorx = 0
                             self.vectory = 0
 
@@ -330,7 +326,7 @@ class Mainloop(object):
             )
             self.rocket_circle -= 10
             self.landing_vehicles -= 1
-            self.sound.play('takeoff')
+            sound.play('takeoff')
             self.landing_vehicle_lock = True
 
     def rocket_dynamics(self):
@@ -338,14 +334,17 @@ class Mainloop(object):
             self.rocket_angle = math.radians(0)
         elif self.rocket_angle < math.radians(0):
             self.rocket_angle = math.radians(360)
+
         if self.thrust > 0.1:
             self.thrust = self.thrust - 0.6
         if self.thrust < 0.01:
             self.thrust = 0.01
+
         if self.vectorx > 1:
             self.vectorx - 0.1
         if self.vectory < 1:
             self.vectory + 0.1
+
         if self.cooldown > 0:
             self.cooldown -= 0.005
 
@@ -359,12 +358,14 @@ class Mainloop(object):
                 self.rcs_thruster(body.x, body.y, "l")
                 self.rocket_angle = self.rocket_angle + math.radians(4)
             if keys[K_SPACE]:
-                # self.sound.play('space')
+                # sound.play('space')
                 self.thrust = 1.2
                 if self.cooldown < 20 and self.fuel > 0:
                     self.fuel -= 1
                     self.vectorx += self.sin * self.thrust * 10
                     self.vectory += self.cos * self.thrust * 10
+
+                    # Generate and draw rocket exhaust.
                     self.thrust_trail(int(body.x), int(body.y))
                     draw_trail(self.trail_list)
                 if self.cooldown < 21:
@@ -402,11 +403,20 @@ class Mainloop(object):
             )
 
     def thrust_trail(self, x, y):
+        """
+        Generate rocket exhaust.
+        """
         rand1 = random.randint(1, 3)
         rand2 = random.randint(1, 3)
-        self.trail_list.append((int(x-self.camx-13*self.sin*rand1), int(y-self.camy-13*self.cos*rand1)))
-        self.trail_list.append((int(x-self.camx-20*self.sin), int(y-self.camy-20*self.cos)))
-        self.trail_list.append((int(x-self.camx-30*self.sin*rand1/rand2), int(y-self.camy-30*self.cos*rand1/rand2)))
+        self.trail_list.append(
+            (int(x - self.camx - 13 * self.sin * rand1), int(y - self.camy - 13 * self.cos * rand1))
+        )
+        self.trail_list.append(
+            (int(x - self.camx - 20 * self.sin), int(y - self.camy - 20 * self.cos))
+        )
+        self.trail_list.append(
+            (int(x - self.camx - 30 * self.sin * rand1 / rand2), int(y - self.camy - 30 * self.cos * rand1 / rand2))
+        )
 
     def counter(self):
         self.count += 1
@@ -433,7 +443,7 @@ class Mainloop(object):
 
         self.fuel = self.fuel + loaded_fuel_amount
         if self.fuel > 1000:
-           self.fuel = 1000
+            self.fuel = 1000
 
     def fuel_out(self, body1, body2, distance):
         """
@@ -503,11 +513,11 @@ class Mainloop(object):
 
     def victory_conditions(self):
         col_with_3_level = [c for c in self.colonies if c.level >= 3]
-        if len(self.colonies) >= 2:
-            if len(col_with_3_level) >= 2:
-                msg = ""
-                gameover = fonts.end.render(msg, 1, Colors.WHITE)
-                s.surface.blit(gameover, (200, 300))
-                pygame.display.update()
-                time.sleep(2)
-                endgame()
+        if len(self.colonies) >= 2 and len(col_with_3_level) >= 2:
+            msg = "You won!"
+            gameover = fonts.end.render(msg, 1, Colors.WHITE)
+            s.surface.blit(gameover, (200, 300))
+            pygame.display.update()
+            sound.play('win')
+            time.sleep(27)
+            endgame()
