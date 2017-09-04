@@ -1,4 +1,6 @@
 
+import csv
+from datetime import datetime, timedelta
 import sys
 import pygame
 from load import Fonts, Sound, Sprites, Surface
@@ -37,9 +39,35 @@ class GameSettings:
     GRAVITY_LIMIT = 150000
 
 
-def endgame():
+def endgame(miliseconds=0):
+    if miliseconds:
+        time_passed = timedelta(milliseconds=miliseconds)
+        print(time_passed)
     print("Game terminated.")
     sys.exit()
+
+
+def get_elapsed_time(elapsed_mseconds, time_format=''):
+    time_passed = timedelta(milliseconds=elapsed_mseconds)
+    return time_passed.seconds if time_format == 'seconds' else str(timedelta(seconds=time_passed.seconds))
+
+
+def write_result(nick, time):
+    with open('game_results.txt', 'a') as descriptor:
+        descriptor.write("%s|%s\n" % (nick, time))
+
+    return True
+
+
+def get_timetable():
+    # Load best times from the file and sort it.
+    data = []
+    with open('game_results.txt', 'r') as descriptor:
+        reader = csv.reader(descriptor, delimiter="|")
+        for row in reader:
+            data.append(row)
+
+    return list(sorted(data, key=lambda item: int(item[1])))
 
 
 pygame.display.set_caption('Adsidera | %s' % __version__)

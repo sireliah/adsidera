@@ -13,7 +13,7 @@ from camera import camera
 from colonies import Colonies
 from conf import fonts, s, sprites, sound, Colors, GameSettings, endgame
 from drawing import Drawing, HUD, draw_exhaust
-from mainmenu import Menu
+from mainmenu import Menu, show_victory_screen
 from planet_names import PLANET_NAMES, STAR_NAMES
 
 
@@ -32,6 +32,7 @@ class Mainloop(object):
         self.rdist = 100
         self.rocket_resources = 100
         self.count = 0
+        self.elapsed_mseconds = 0
         self.rockets = GameSettings.ROCKETS
         self.thrust = 1
         self.gforce = (0, 0)
@@ -95,7 +96,7 @@ class Mainloop(object):
             del self.velocity_components_y[:]
 
             # Tick the game clock and draw all images.
-            self.clock.tick_busy_loop(GameSettings.FPS)
+            self.elapsed_mseconds += self.clock.tick_busy_loop(GameSettings.FPS)
             pygame.display.flip()
 
     def bodies_physics(self, body):
@@ -283,10 +284,10 @@ class Mainloop(object):
                     self.terra_y = body.y
 
                 if event.type == QUIT:
-                    endgame()
+                    endgame(miliseconds=self.elapsed_mseconds)
                 elif event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
-                        endgame()
+                        endgame(miliseconds=self.elapsed_mseconds)
 
                     elif event.key == K_c and body.name == 'rocket':
                         self.thrust = self.thrust - 0.1
@@ -482,10 +483,6 @@ class Mainloop(object):
         if body.name in [colony.planet for colony in self.colonies]:
             loaded_fuel_amount = 10
 
-            # Also, load a landing vehicle.
-            if self.landing_vehicles <= 1:
-                self.landing_vehicles += 1
-
         self.fuel = self.fuel + loaded_fuel_amount
         if self.fuel > 1000:
             self.fuel = 1000
@@ -554,15 +551,16 @@ class Mainloop(object):
             gameover = fonts.basic.render(tresc, 1, Colors.WHITE)
             s.surface.blit(gameover, (400, 400))
             pygame.display.update()
+            time.sleep(2)
             endgame()
 
     def victory_conditions(self):
-        col_with_3_level = [c for c in self.colonies if c.level >= 3]
-        if len(self.colonies) >= 2 and len(col_with_3_level) >= 2:
-            msg = "You won!"
-            gameover = fonts.end.render(msg, 1, Colors.WHITE)
-            s.surface.blit(gameover, (200, 300))
-            pygame.display.update()
+        # col_with_3_level = [c for c in self.colonies if c.level >= 3]
+        if len(self.colonies) >= 4:  # and len(col_with_3_level) >= 2:
+
             sound.play('win')
-            time.sleep(27)
+            time.sleep(2)
+
+            show_victory_screen(self.elapsed_mseconds)
+
             endgame()
