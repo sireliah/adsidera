@@ -20,9 +20,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ### How to run it?
 
 1. Create virtual environment:
-    virtualenv-3 .venv
-    source .venv/bin/activate
+```
+virtualenv-3 .venv
+source .venv/bin/activate
+```
 2. Install requirements
-    pip3 install -r requirements.txt
+```
+pip3 install -r requirements.txt
+```
 3. Run the game!
-    python3 adsidera.py
+```
+python3 adsidera.py
+```
