@@ -157,7 +157,7 @@ class Menu(object):
 
     def switch(self):
         self.i += 1
-        if self.i > 5:
+        if self.i > 12:
             self.i = 0
         return self.i
 

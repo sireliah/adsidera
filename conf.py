@@ -70,9 +70,10 @@ def get_timetable():
     return list(sorted(data, key=lambda item: int(item[1])))
 
 
-pygame.display.set_caption('Adsidera | %s' % __version__)
 
 s = Surface()
 sprites = Sprites()
 fonts = Fonts()
 sound = Sound()
+
+pygame.display.set_caption('Adsidera | %s' % __version__)
