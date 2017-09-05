@@ -34,8 +34,21 @@ class GameSettings:
     CIRCLE_SIZE = 50
     ROCKETS = 3
     LANDING_VEHICLES = 3
+    FUEL = 600
+
+    # Rate at which rocket is rotated.
+    ROCKET_ROTATION_ANGLE = 4
+
+    # How much force rocket engine generates.
+    THRUST = 0.7
+
+    # The coef that controls at which rate bodies are decelerated. It's related to the game speed. 
     RETARDATION = 120
+
+    # Gravity constant
     G_CONSTANT = 0.2
+
+    # If distance between two bodies is greater, we do not calculate gravity force for them.
     GRAVITY_LIMIT = 150000
 
 

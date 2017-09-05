@@ -63,7 +63,7 @@ class Surface(object):
         self.half_height = int(self.window_height/2)
         self.surface = pygame.display.set_mode(
             (self.window_width, self.window_height),
-        #    FULLSCREEN |
+            FULLSCREEN |
             HWSURFACE |
             DOUBLEBUF
         )

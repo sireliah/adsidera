@@ -18,11 +18,7 @@ class Colonies(list):
     A colony has level based on the number of landing vehicles that landed on the planet.
     """
 
-    def __init__(self, rocket_resources):
-        self.rocket_resources = rocket_resources
-
-    def colony_deployment(self, body1, body2, distance, rocket_resources):
-        self.rocket_resources = rocket_resources
+    def colony_deployment(self, body1, body2, distance):
 
         if body1.type == 'landing_vehicle' and (body2.type in ('planet', 'other')) and body2.name != 'terra':
             if distance < 20:

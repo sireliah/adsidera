@@ -30,11 +30,10 @@ class Mainloop(object):
         s.mouse_invisible()
         self.enter = 0
         self.rdist = 100
-        self.rocket_resources = 100
         self.count = 0
         self.elapsed_mseconds = 0
         self.rockets = GameSettings.ROCKETS
-        self.thrust = 1
+        self.thrust = GameSettings.THRUST
         self.gforce = (0, 0)
         self.exhaust_list = []
         self.lander_dist = 0
@@ -42,14 +41,14 @@ class Mainloop(object):
         self.landing_vehicles = GameSettings.LANDING_VEHICLES
         self.velocity_components_x, self.velocity_components_y = [], []
         self.cooldown = 0
-        self.fuel = 1000
+        self.fuel = GameSettings.FUEL
         self.fuel_dist = 0
         self.vector_x, self.vector_y = 1, 1
         self.landerx, self.landery = 0, 0
         self.rocket_center_x, self.rocket_center_y = 15, 35
         self.rocket_thruster_left, self.rocket_thruster_right = 0, 0
         self.rocket_image = sprites.rocket_image.copy()
-        self.colonies = Colonies(self.rocket_resources)
+        self.colonies = Colonies()
         self.drawing = Drawing(self.camx, self.camy, self.count, sprites, BodyCreator.generate_stars())
 
     def play(self):
@@ -229,7 +228,7 @@ class Mainloop(object):
                                     self.landerx = component_x
                                     self.landery = component_y
                                     if distance < 17:
-                                        self.colonies.colony_deployment(body1, body2, distance, self.rocket_resources)
+                                        self.colonies.colony_deployment(body1, body2, distance)
                                         self.del_body(body1.name)
                             elif body2.type == 'rocket':
                                 # Distance from rocket to landing vehicle
@@ -311,8 +310,8 @@ class Mainloop(object):
                                     size=1,
                                 )
                             )
-                            self.fuel = 1000
-                            self.landing_vehicles = 3
+                            self.fuel = GameSettings.FUEL
+                            self.landing_vehicles = GameSettings.LANDING_VEHICLES
                             sound.play('takeoff')
                             self.vector_x = 0
                             self.vector_y = 0
@@ -386,13 +385,13 @@ class Mainloop(object):
         if body.name == 'rocket':
             if keys[K_RIGHT]:
                 self.rcs_thruster(body.x, body.y, "p")
-                self.rocket_angle = self.rocket_angle - math.radians(4)
+                self.rocket_angle = self.rocket_angle - math.radians(GameSettings.ROCKET_ROTATION_ANGLE)
             if keys[K_LEFT]:
                 self.rcs_thruster(body.x, body.y, "l")
-                self.rocket_angle = self.rocket_angle + math.radians(4)
+                self.rocket_angle = self.rocket_angle + math.radians(GameSettings.ROCKET_ROTATION_ANGLE)
             if keys[K_SPACE]:
                 # sound.play('space')
-                self.thrust = 1.2
+                self.thrust = GameSettings.THRUST
                 if self.cooldown < 20 and self.fuel > 0:
                     self.fuel -= 1
                     self.vector_x += self.sin * self.thrust * 10
