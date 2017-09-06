@@ -32,15 +32,15 @@ class GameSettings:
     CAMERA_MARGIN = 50
     FPS = 40
     CIRCLE_SIZE = 50
-    ROCKETS = 3
-    LANDING_VEHICLES = 3
-    FUEL = 600
+    ROCKETS = 30
+    LANDING_VEHICLES = 30
+    FUEL = 6000
 
     # Rate at which rocket is rotated.
     ROCKET_ROTATION_ANGLE = 4
 
     # How much force rocket engine generates.
-    THRUST = 0.7
+    THRUST = 1.2
 
     # The coef that controls at which rate bodies are decelerated. It's related to the game speed. 
     RETARDATION = 120

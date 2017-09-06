@@ -254,8 +254,8 @@ class Mainloop(object):
                     # Load resources from Terra
                     if self.colonies.resources_terra(body1, body2, distance):
                         self.landing_vehicles += 1
-                    if self.landing_vehicles > 3:
-                        self.landing_vehicles = 3
+                    #if self.landing_vehicles > 3:
+                    #    self.landing_vehicles = 3
 
     def transform_rocket_image(self):
         """
@@ -483,8 +483,8 @@ class Mainloop(object):
             loaded_fuel_amount = 10
 
         self.fuel = self.fuel + loaded_fuel_amount
-        if self.fuel > 1000:
-            self.fuel = 1000
+        if self.fuel > GameSettings.FUEL:
+            self.fuel = GameSettings.FUEL
 
     def fuel_out(self, body1, body2, distance):
         """
